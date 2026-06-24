@@ -1,24 +1,25 @@
 package moritz.createturbine.content;
 
-import java.util.List;
+import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
 
 import moritz.createturbine.content.PressureSampler.PressureResult;
-import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
-import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Kinetic generator whose output scales with the water pressure (column height)
- * above the block. Both the generated speed (RPM) and the stress capacity per RPM
- * grow with height, so the effective power (≈ capacity × speed) scales strongly
- * with how deep the water above the turbine is ("beides skaliert").
+ * Water turbine generator.
+ *
+ * Extends Create's {@link WaterWheelBlockEntity} purely to reuse its exact rendering
+ * (Create's WaterWheelRenderer draws the wheel for this block entity). The water-wheel's
+ * flow-based speed is replaced here: speed (RPM) and stress capacity (SU per RPM) both scale
+ * with the water pressure = height of the connected water column above the block, so the
+ * effective power (≈ capacity × speed) grows strongly with depth ("beides skaliert").
  */
-public class WaterTurbineBlockEntity extends GeneratingKineticBlockEntity {
+public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
 
     // ---- Tunables (kept as constants for now; can move to a NeoForge config later) ----
     /** RPM produced at one block of water height. */
@@ -36,15 +37,12 @@ public class WaterTurbineBlockEntity extends GeneratingKineticBlockEntity {
     private static final int RECALC_RATE = 20;
 
     private PressureResult pressure = PressureResult.EMPTY;
+    private int recalcTimer = 0;
 
     public WaterTurbineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
-        setLazyTickRate(RECALC_RATE);
-    }
-
-    @Override
-    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-        // No extra behaviours needed.
+        // The renderer reads 'material' for the wood texture; keep it non-null (default oak).
+        this.material = Blocks.OAK_PLANKS.defaultBlockState();
     }
 
     @Override
@@ -56,11 +54,15 @@ public class WaterTurbineBlockEntity extends GeneratingKineticBlockEntity {
     }
 
     @Override
-    public void lazyTick() {
-        super.lazyTick();
+    public void tick() {
+        super.tick();
         if (level == null || level.isClientSide) {
             return;
         }
+        if (--recalcTimer > 0) {
+            return;
+        }
+        recalcTimer = RECALC_RATE;
         PressureResult sampled = PressureSampler.sample(level, worldPosition);
         if (!sampled.equals(pressure)) {
             pressure = sampled;
@@ -90,7 +92,7 @@ public class WaterTurbineBlockEntity extends GeneratingKineticBlockEntity {
     }
 
     @Override
-    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+    public void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(tag, registries, clientPacket);
         tag.putInt("PressureHeight", pressure.height());
         tag.putInt("PressureVolume", pressure.volume());

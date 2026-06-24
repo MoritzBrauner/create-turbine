@@ -21,7 +21,11 @@ public class CTBlocks {
                             .mapColor(MapColor.METAL)
                             .strength(3.0F, 6.0F)
                             .requiresCorrectToolForDrops()
-                            .sound(SoundType.METAL));
+                            .sound(SoundType.METAL)
+                            // The wheel extends beyond the block and is not a full cube.
+                            // Without this the block occludes light, so its own position is
+                            // dark and the rendered wheel comes out almost black.
+                            .noOcclusion());
 
     public static void register(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);
