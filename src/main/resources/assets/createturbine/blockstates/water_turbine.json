@@ -1,11 +1,10 @@
 {
-  "comment": "Static andesite hub: reuses Create's water wheel frame model, oriented per facing. The spinning wheel itself is drawn by Create's WaterWheelRenderer.",
   "variants": {
-    "facing=down":  { "model": "create:block/water_wheel/block", "x": 180 },
-    "facing=up":    { "model": "create:block/water_wheel/block" },
-    "facing=north": { "model": "create:block/water_wheel/block", "x": 90 },
-    "facing=south": { "model": "create:block/water_wheel/block", "x": 90, "y": 180 },
-    "facing=east":  { "model": "create:block/water_wheel/block", "x": 90, "y": 90 },
-    "facing=west":  { "model": "create:block/water_wheel/block", "x": 90, "y": 270 }
+    "facing=down":  { "model": "createturbine:block/water_turbine" },
+    "facing=up":    { "model": "createturbine:block/water_turbine" },
+    "facing=north": { "model": "createturbine:block/water_turbine" },
+    "facing=south": { "model": "createturbine:block/water_turbine" },
+    "facing=east":  { "model": "createturbine:block/water_turbine" },
+    "facing=west":  { "model": "createturbine:block/water_turbine" }
   }
 }

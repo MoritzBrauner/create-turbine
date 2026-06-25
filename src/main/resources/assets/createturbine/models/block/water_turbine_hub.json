@@ -1,0 +1,21 @@
+{
+  "comment": "Solid andesite hub (12x12x12, centred) drawn by WaterTurbineRenderer. Closed on all sides so the centre is never an open black tube; the wheel blades render around it via the Flywheel visual.",
+  "textures": {
+    "0": "create:block/gearbox",
+    "particle": "create:block/gearbox"
+  },
+  "elements": [
+    {
+      "from": [2, 2, 2],
+      "to": [14, 14, 14],
+      "faces": {
+        "north": { "texture": "#0" },
+        "south": { "texture": "#0" },
+        "east":  { "texture": "#0" },
+        "west":  { "texture": "#0" },
+        "up":    { "texture": "#0" },
+        "down":  { "texture": "#0" }
+      }
+    }
+  ]
+}
