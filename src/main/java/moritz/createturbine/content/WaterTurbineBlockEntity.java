@@ -78,8 +78,12 @@ public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
         if (height <= 0) {
             return 0f;
         }
-        float rpm = BASE_RPM + RPM_PER_BLOCK * height;
-        return Math.min(rpm, MAX_RPM);
+        float rpm = Math.min(BASE_RPM + RPM_PER_BLOCK * height, MAX_RPM);
+        // Magnitude comes from the water pressure; spin direction follows the water flow that the
+        // inherited water-wheel detection found (flowScore). With still water (no flow) flowScore
+        // is 0 and we just use the default direction.
+        int direction = Integer.signum(flowScore);
+        return direction == 0 ? rpm : rpm * direction;
     }
 
     @Override
