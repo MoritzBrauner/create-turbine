@@ -41,8 +41,9 @@ public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
 
     public WaterTurbineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
-        // The renderer reads 'material' for the wood texture; keep it non-null (default oak).
-        this.material = Blocks.OAK_PLANKS.defaultBlockState();
+        // Same default wood as a freshly placed Create water wheel (set in the super ctor, made
+        // explicit here); right-clicking with planks swaps it via applyMaterialIfValid.
+        this.material = Blocks.SPRUCE_PLANKS.defaultBlockState();
     }
 
     @Override

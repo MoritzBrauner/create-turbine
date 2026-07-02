@@ -1,5 +1,5 @@
 {
-  "textures": {
-    "particle": "create:block/gearbox"
-  }
+  "comment": "The frame texture (andesite_funnel_frame) has a fully transparent 12x12 centre. Create puts its water wheel on cutout_mipped via ItemBlockRenderTypes (keyed on Create's own block), so this model must request the layer itself or the centre renders as a black square.",
+  "parent": "create:block/water_wheel/block",
+  "render_type": "minecraft:cutout_mipped"
 }

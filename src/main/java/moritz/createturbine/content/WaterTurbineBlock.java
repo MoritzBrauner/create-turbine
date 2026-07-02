@@ -6,17 +6,23 @@ import com.simibubi.create.foundation.block.IBE;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 /**
  * The Water Turbine block. It is a Create kinetic generator whose axle runs along the
  * {@link #FACING} axis; shafts connect to both ends of that axle.
  *
- * Mirrors Create's own water wheel: FACING is normalised to the positive axis direction on
- * placement so orientation and rotation are deterministic, and shafts connect on either side.
+ * Mirrors Create's water wheel as shipped: all six FACING values occur in the world (Create's
+ * own placement normalisation is a no-op — the setValue result is discarded), the blockstate
+ * rotations orient the frame per facing, and right-clicking with planks swaps the wheel material.
  */
 public class WaterTurbineBlock extends DirectionalKineticBlock implements IBE<WaterTurbineBlockEntity> {
 
@@ -25,16 +31,9 @@ public class WaterTurbineBlock extends DirectionalKineticBlock implements IBE<Wa
     }
 
     @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
-        BlockState state = super.getStateForPlacement(context);
-        if (state == null) {
-            return null;
-        }
-        // Normalise FACING to the positive direction of its axis. This makes both axle ends
-        // equivalent and keeps the rendered orientation/rotation consistent regardless of
-        // which side the block was placed against (same approach as Create's water wheel).
-        Direction.Axis axis = state.getValue(FACING).getAxis();
-        return state.setValue(FACING, Direction.get(Direction.AxisDirection.POSITIVE, axis));
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+                                              Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return onBlockEntityUseItemOn(level, pos, be -> be.applyMaterialIfValid(stack));
     }
 
     @Override
@@ -46,6 +45,23 @@ public class WaterTurbineBlock extends DirectionalKineticBlock implements IBE<Wa
     @Override
     public Direction.Axis getRotationAxis(BlockState state) {
         return state.getValue(FACING).getAxis();
+    }
+
+    // Kinetic-indicator particle ring sized like Create's water wheel (defaults are smaller).
+    @Override
+    public float getParticleInitialRadius() {
+        return 1f;
+    }
+
+    @Override
+    public float getParticleTargetRadius() {
+        return 1.125f;
+    }
+
+    // Generators show capacity, not impact; Create's wheel hides the impact line too.
+    @Override
+    public boolean hideStressImpact() {
+        return true;
     }
 
     @Override

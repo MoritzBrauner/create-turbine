@@ -1,10 +1,10 @@
 {
   "variants": {
-    "facing=down":  { "model": "createturbine:block/water_turbine" },
+    "facing=down":  { "model": "createturbine:block/water_turbine", "x": 180 },
     "facing=up":    { "model": "createturbine:block/water_turbine" },
-    "facing=north": { "model": "createturbine:block/water_turbine" },
-    "facing=south": { "model": "createturbine:block/water_turbine" },
-    "facing=east":  { "model": "createturbine:block/water_turbine" },
-    "facing=west":  { "model": "createturbine:block/water_turbine" }
+    "facing=north": { "model": "createturbine:block/water_turbine", "x": 90 },
+    "facing=south": { "model": "createturbine:block/water_turbine", "x": 90, "y": 180 },
+    "facing=east":  { "model": "createturbine:block/water_turbine", "x": 90, "y": 90 },
+    "facing=west":  { "model": "createturbine:block/water_turbine", "x": 90, "y": 270 }
   }
 }
