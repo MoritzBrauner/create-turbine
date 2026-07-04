@@ -2,6 +2,7 @@ package moritz.createturbine.content;
 
 import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
 
+import moritz.createturbine.CTConfig;
 import moritz.createturbine.content.PressureSampler.PressureResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -13,31 +14,28 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Water turbine generator.
  *
- * Extends Create's {@link WaterWheelBlockEntity} purely to reuse its exact rendering
- * (Create's WaterWheelRenderer draws the wheel for this block entity). The water-wheel's
- * flow-based speed is replaced here: speed (RPM) and stress capacity (SU per RPM) both scale
- * with the water pressure = height of the connected water column above the block, so the
- * effective power (≈ capacity × speed) grows strongly with depth ("beides skaliert").
+ * Extends Create's {@link WaterWheelBlockEntity} to reuse its exact rendering and its flow-score
+ * logic. The flow score decides the SPIN DIRECTION exactly like a vanilla water wheel: each side
+ * where water flows tangentially past the blades contributes +/-1, so water dropping evenly down
+ * both sides cancels to 0 and the turbine stands still.
+ *
+ * The MAGNITUDE of speed (RPM) and the stress capacity (SU) come from the water pressure — the
+ * height of the connected water column above the block — via the power-of-two curve in
+ * {@link TurbineCurve}. Create's kinetic network computes total SU as capacity x |speed|, so
+ * {@link #calculateAddedStressCapacity()} returns totalSU(height) / rpm(height).
  */
 public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
-
-    // ---- Tunables (kept as constants for now; can move to a NeoForge config later) ----
-    /** RPM produced at one block of water height. */
-    private static final float BASE_RPM = 4f;
-    /** Additional RPM per block of water height. */
-    private static final float RPM_PER_BLOCK = 4f;
-    /** Create's hard speed cap. */
-    private static final float MAX_RPM = 256f;
-    /** Base stress capacity (SU per RPM) at one block of height. */
-    private static final float BASE_CAPACITY = 4f;
-    /** Capacity growth factor per block of height. */
-    private static final float CAP_PER_BLOCK = 0.5f;
 
     /** How often (in ticks) the water column is re-evaluated. */
     private static final int RECALC_RATE = 20;
 
     private PressureResult pressure = PressureResult.EMPTY;
     private int recalcTimer = 0;
+
+    // Outputs last pushed into the kinetic network. When the recomputed values differ (water
+    // column changed, or the config was edited), updateGeneratedRotation() re-propagates.
+    private float lastAppliedRpm = Float.NaN;
+    private float lastAppliedCapacity = Float.NaN;
 
     public WaterTurbineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -50,7 +48,7 @@ public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
     public void initialize() {
         super.initialize();
         if (level != null && !level.isClientSide) {
-            pressure = PressureSampler.sample(level, worldPosition);
+            resampleAndApply();
         }
     }
 
@@ -64,34 +62,82 @@ public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
             return;
         }
         recalcTimer = RECALC_RATE;
-        PressureResult sampled = PressureSampler.sample(level, worldPosition);
-        if (!sampled.equals(pressure)) {
-            pressure = sampled;
-            // Recompute generated speed + stress and propagate through the network.
+        resampleAndApply();
+    }
+
+    /**
+     * Immediate reaction to a neighbour change, scheduled by the block one tick after water
+     * around the turbine changes (mirrors Create's water wheel responsiveness).
+     */
+    public void waterChanged() {
+        // Pressure first: a direction flip must be applied with the fresh magnitude. Applying
+        // the new sign at a stale, lower magnitude would make Create's applyNewSpeed pop the
+        // turbine off an externally driven network instead of letting it take over.
+        samplePressure();
+        determineAndApplyFlowScore(); // spin direction; updates rotation itself when it changes
+        recalcTimer = RECALC_RATE;
+        applyIfChanged();
+    }
+
+    @Override
+    public void lazyTick() {
+        // Same ordering concern as waterChanged(): the inherited lazyTick recomputes the flow
+        // score, so refresh the pressure it will be applied with.
+        if (level != null && !level.isClientSide) {
+            samplePressure();
+        }
+        super.lazyTick();
+    }
+
+    /** Re-samples the water column and re-propagates speed/stress when the outputs changed. */
+    private void resampleAndApply() {
+        samplePressure();
+        applyIfChanged();
+    }
+
+    private void samplePressure() {
+        pressure = PressureSampler.sample(level, worldPosition, CTConfig.MAX_COLUMN_HEIGHT.get());
+    }
+
+    /** Re-propagates speed/stress when the computed outputs changed (water column or config). */
+    private void applyIfChanged() {
+        float rpm = targetRpm();
+        float capacity = targetCapacity();
+        if (rpm != lastAppliedRpm || capacity != lastAppliedCapacity) {
+            lastAppliedRpm = rpm;
+            lastAppliedCapacity = capacity;
             updateGeneratedRotation();
             setChanged();
         }
     }
 
-    @Override
-    public float getGeneratedSpeed() {
+    /** Speed magnitude (RPM) for the current water column; 0 without water. */
+    private int targetRpm() {
+        int height = pressure.height();
+        return height <= 0 ? 0 : TurbineCurve.rpm(height);
+    }
+
+    /** Stress capacity in SU per RPM (Create's unit): total SU / RPM for the current column. */
+    private float targetCapacity() {
         int height = pressure.height();
         if (height <= 0) {
             return 0f;
         }
-        float rpm = Math.min(BASE_RPM + RPM_PER_BLOCK * height, MAX_RPM);
-        // Magnitude comes from the water pressure; spin direction follows the water flow that the
-        // inherited water-wheel detection found (flowScore). With still water (no flow) flowScore
-        // is 0 and we just use the default direction.
+        return TurbineCurve.stressUnits(height) / (float) TurbineCurve.rpm(height);
+    }
+
+    @Override
+    public float getGeneratedSpeed() {
+        // Direction from the water-wheel flow score: water passing one side of the blades spins
+        // the turbine; symmetric flow down both sides cancels to 0 -> standstill.
         int direction = Integer.signum(flowScore);
-        return direction == 0 ? rpm : rpm * direction;
+        return direction * targetRpm();
     }
 
     @Override
     public float calculateAddedStressCapacity() {
-        int height = pressure.height();
-        float capacity = height <= 0 ? 0f : BASE_CAPACITY * (1f + CAP_PER_BLOCK * height);
-        // Mirror the base implementation, which stores the value for goggle/network readout.
+        float capacity = targetCapacity();
+        // Mirror the base implementation, which stores the value for network bookkeeping.
         this.lastCapacityProvided = capacity;
         return capacity;
     }

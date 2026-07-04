@@ -12,7 +12,9 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 
@@ -28,11 +30,14 @@ public class CreateTurbine {
     public static final String MODID = "createturbine";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public CreateTurbine(IEventBus modEventBus) {
+    public CreateTurbine(IEventBus modEventBus, ModContainer modContainer) {
         // Register all DeferredRegisters to the mod event bus.
         CTBlocks.register(modEventBus);
         CTBlockEntities.register(modEventBus);
         CTItems.register(modEventBus);
+
+        // Power-curve values; per-world server config, synced to clients on join.
+        modContainer.registerConfig(ModConfig.Type.SERVER, CTConfig.SPEC);
 
         // Put the turbine item into a vanilla creative tab.
         modEventBus.addListener(this::addCreative);

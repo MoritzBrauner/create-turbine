@@ -4,13 +4,17 @@ import moritz.createturbine.registry.CTBlockEntities;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
 
+import net.createmod.catnip.levelWrappers.WrappedLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -34,6 +38,37 @@ public class WaterTurbineBlock extends DirectionalKineticBlock implements IBE<Wa
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                               Player player, InteractionHand hand, BlockHitResult hitResult) {
         return onBlockEntityUseItemOn(level, pos, be -> be.applyMaterialIfValid(stack));
+    }
+
+    // Neighbour-change -> recompute chain, mirroring Create's water wheel: any shape update (and
+    // placement) schedules a 1-tick block tick, which re-evaluates flow direction and pressure.
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState,
+                                  LevelAccessor world, BlockPos pos, BlockPos neighbourPos) {
+        if (world instanceof WrappedLevel || world.isClientSide()) {
+            return state;
+        }
+        if (!world.getBlockTicks().hasScheduledTick(pos, this)) {
+            world.scheduleTick(pos, this, 1);
+        }
+        return state;
+    }
+
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+        super.onPlace(state, level, pos, oldState, isMoving);
+        if (level.isClientSide()) {
+            return;
+        }
+        if (!level.getBlockTicks().hasScheduledTick(pos, this)) {
+            level.scheduleTick(pos, this, 1);
+        }
+    }
+
+    @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        withBlockEntityDo(level, pos, WaterTurbineBlockEntity::waterChanged);
     }
 
     @Override
