@@ -1,21 +1,27 @@
 package moritz.createturbine.content;
 
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
 
 import moritz.createturbine.CTConfig;
 import moritz.createturbine.content.PressureSampler.PressureResult;
+import moritz.createturbine.registry.CTTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Water turbine generator.
  *
- * Extends Create's {@link WaterWheelBlockEntity} to reuse its exact rendering and its flow-score
- * logic. The flow score decides the SPIN DIRECTION exactly like a vanilla water wheel: each side
+ * Extends Create's {@link WaterWheelBlockEntity} to reuse its flow-score logic and its material
+ * plumbing (NBT sync, right-click swap); rendering is done by our own visual/renderer, retextured
+ * to the applied technical material. The flow score decides the SPIN DIRECTION: each side
  * where water flows tangentially past the blades contributes +/-1, so water dropping evenly down
  * both sides cancels to 0 and the turbine stands still.
  *
@@ -39,9 +45,34 @@ public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
 
     public WaterTurbineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
-        // Same default wood as a freshly placed Create water wheel (set in the super ctor, made
-        // explicit here); right-clicking with planks swaps it via applyMaterialIfValid.
-        this.material = Blocks.SPRUCE_PLANKS.defaultBlockState();
+        // Default wheel material; right-clicking with a createturbine:turbine_materials block
+        // swaps it via applyMaterialIfValid.
+        this.material = AllBlocks.INDUSTRIAL_IRON_BLOCK.getDefaultState();
+    }
+
+    /**
+     * Same behaviour as Create's water wheel material swap, but accepting the turbine's material
+     * tag (technical blocks) instead of planks.
+     */
+    @Override
+    public ItemInteractionResult applyMaterialIfValid(ItemStack stack) {
+        if (!(stack.getItem() instanceof BlockItem blockItem)) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        BlockState newMaterial = blockItem.getBlock().defaultBlockState();
+        if (newMaterial == material) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        if (!newMaterial.is(CTTags.TURBINE_MATERIALS)) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        if (level.isClientSide() && !isVirtual()) {
+            return ItemInteractionResult.SUCCESS;
+        }
+        material = newMaterial;
+        notifyUpdate();
+        level.levelEvent(2001, worldPosition, Block.getId(newMaterial));
+        return ItemInteractionResult.SUCCESS;
     }
 
     @Override
@@ -153,5 +184,10 @@ public class WaterTurbineBlockEntity extends WaterWheelBlockEntity {
     protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(tag, registries, clientPacket);
         pressure = new PressureResult(tag.getInt("PressureHeight"), tag.getInt("PressureVolume"));
+        // Migrate materials that are no longer allowed (super falls back to spruce planks, and
+        // old saves may carry planks from before the technical-material switch).
+        if (!material.is(CTTags.TURBINE_MATERIALS)) {
+            material = AllBlocks.INDUSTRIAL_IRON_BLOCK.getDefaultState();
+        }
     }
 }

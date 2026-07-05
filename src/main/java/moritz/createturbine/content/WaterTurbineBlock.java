@@ -26,7 +26,8 @@ import net.minecraft.world.phys.BlockHitResult;
  *
  * Mirrors Create's water wheel as shipped: all six FACING values occur in the world (Create's
  * own placement normalisation is a no-op — the setValue result is discarded), the blockstate
- * rotations orient the frame per facing, and right-clicking with planks swaps the wheel material.
+ * rotations orient the frame per facing, and right-clicking with a block tagged
+ * {@code createturbine:turbine_materials} swaps the wheel material.
  */
 public class WaterTurbineBlock extends DirectionalKineticBlock implements IBE<WaterTurbineBlockEntity> {
 

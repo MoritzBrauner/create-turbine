@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "create:industrial_iron_block",
+    "create:andesite_casing",
+    "create:copper_casing",
+    "create:brass_casing"
+  ]
+}

@@ -1,3 +1,11 @@
 {
-  "parent": "create:block/water_wheel/item"
+  "comment": "Create's water wheel item OBJ, retextured to the turbine's default material (industrial iron). Mirrors create:block/water_wheel/item, which overrides the same slots with spruce.",
+  "parent": "create:block/water_wheel/textures",
+  "loader": "neoforge:obj",
+  "flip_v": true,
+  "model": "create:models/block/water_wheel/water_wheel_item.obj",
+  "textures": {
+    "planks": "create:block/industrial_iron_block",
+    "log": "create:block/industrial_iron_block_top"
+  }
 }
